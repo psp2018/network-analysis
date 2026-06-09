@@ -1,0 +1,17 @@
+node_modules/
+.env
+.env.*
+*.log
+
+# Generated telemetry outputs can become large.
+data/generated_*.csv
+data/generated_*.json
+data/demo_*.csv
+data/demo_*.json
+
+# Keep the curated base dataset tracked.
+!data/network_telemetry_base.csv
+
+# Local editor files.
+.vscode/
+.idea/

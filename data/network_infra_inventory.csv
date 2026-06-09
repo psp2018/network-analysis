@@ -1,0 +1,9 @@
+device_id,hostname,device_type,site,region,role,vendor,model,os_version,management_ip,serial_number,environment,criticality,owner_team,status,install_date,interfaces,uplink_device_id,monitoring_enabled
+edge-rtr-01,edge-rtr-01,router,zurich-hq,emea,wan_edge,Juniper,MX204,Junos 22.4R3,10.255.1.1,JNP-EDGE-0001,production,high,network-operations,active,2024-03-14,ge-0/0/1|ge-0/0/2,core-sw-01,true
+edge-rtr-02,edge-rtr-02,router,geneva-branch,emea,wan_edge,Juniper,MX204,Junos 22.4R3,10.255.2.1,JNP-EDGE-0002,production,medium,network-operations,active,2024-05-09,ge-0/0/0|ge-0/0/1,fw-hq-01,true
+core-sw-01,core-sw-01,switch,zurich-hq,emea,campus_core,Cisco,C9500-48Y4C,IOS-XE 17.9.4,10.255.10.1,CSC-CORE-0001,production,critical,network-operations,active,2023-11-21,xe-0/1/0|xe-0/1/2|xe-0/1/3,,true
+core-sw-02,core-sw-02,switch,zurich-hq,emea,campus_core,Cisco,C9500-48Y4C,IOS-XE 17.9.4,10.255.10.2,CSC-CORE-0002,production,critical,network-operations,active,2023-11-21,xe-0/1/1|xe-0/1/2,core-sw-01,true
+fw-hq-01,fw-hq-01,firewall,zurich-hq,emea,perimeter_firewall,Palo Alto,PA-3220,PAN-OS 11.1.2,10.255.20.1,PAN-FW-0001,production,critical,security-operations,active,2024-01-18,wan0|lan0,core-sw-01,true
+fw-branch-02,fw-branch-02,firewall,basel-branch,emea,branch_firewall,Fortinet,FortiGate 100F,FortiOS 7.2.8,10.255.30.1,FGT-FW-0002,production,high,security-operations,active,2024-02-06,wan1|lan1,edge-rtr-01,true
+ap-floor1-03,ap-floor1-03,access_point,zurich-hq,emea,wireless_access,Cisco,Catalyst 9166I,IOS-XE 17.12.1,10.255.40.3,CSC-AP-0103,production,medium,network-operations,active,2025-01-10,wlan0,core-sw-01,true
+ap-floor3-07,ap-floor3-07,access_point,zurich-hq,emea,wireless_access,Cisco,Catalyst 9166I,IOS-XE 17.12.1,10.255.40.7,CSC-AP-0307,production,medium,network-operations,active,2025-01-10,wlan0,core-sw-02,true

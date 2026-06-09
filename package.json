@@ -1,0 +1,14 @@
+{
+  "name": "network-analysis",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Synthetic network telemetry dataset and generator agent for network analysis.",
+  "scripts": {
+    "generate:csv": "node scripts/telemetry_agent.js --count 100 --anomaly-rate 0.15 --format csv --output data/generated_network_telemetry.csv",
+    "generate:json": "node scripts/telemetry_agent.js --count 100 --anomaly-rate 0.15 --format json --output data/generated_network_telemetry.json",
+    "generate:demo": "node scripts/telemetry_agent.js --count 25 --anomaly-rate 0.3 --format csv --output data/demo_network_telemetry.csv --seed 42"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
