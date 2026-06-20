@@ -11,6 +11,7 @@ const elements = {
   linkCount: document.getElementById("linkCount"),
   map: document.getElementById("networkMap"),
   resetButton: document.getElementById("resetButton"),
+  scenarioSelect: document.getElementById("scenarioSelect"),
   startButton: document.getElementById("startButton"),
   status: document.getElementById("networkStatus"),
 };
@@ -60,6 +61,7 @@ function parseCsv(csv) {
 }
 
 function pick(items) {
+  if (!items.length) return null;
   return items[Math.floor(Math.random() * items.length)];
 }
 
@@ -128,6 +130,18 @@ function renderMap() {
   map.innerHTML = "";
   map.setAttribute("viewBox", "0 0 1000 560");
 
+  const defs = createSvgElement("defs");
+  const pattern = createSvgElement("pattern", {
+    id: "gridPattern",
+    width: "40",
+    height: "40",
+    patternUnits: "userSpaceOnUse",
+  });
+  pattern.appendChild(createSvgElement("path", { class: "grid-line", d: "M 40 0 L 0 0 0 40" }));
+  defs.appendChild(pattern);
+  map.appendChild(defs);
+  map.appendChild(createSvgElement("rect", { class: "map-bg", width: "1000", height: "560" }));
+
   const byId = new Map(state.devices.map((device) => [device.device_id, device]));
   const linkLayer = createSvgElement("g", { class: "links" });
   const nodeLayer = createSvgElement("g", { class: "nodes" });
@@ -139,15 +153,14 @@ function renderMap() {
 
     const sourcePoint = viewBoxPoint(source);
     const targetPoint = viewBoxPoint(target);
-    const line = createSvgElement("line", {
+    linkLayer.appendChild(createSvgElement("line", {
       class: "link",
       "data-link-id": link.id,
       x1: sourcePoint.x,
       y1: sourcePoint.y,
       x2: targetPoint.x,
       y2: targetPoint.y,
-    });
-    linkLayer.appendChild(line);
+    }));
   }
 
   for (const device of state.devices) {
@@ -157,7 +170,10 @@ function renderMap() {
       "data-device-id": device.device_id,
       transform: `translate(${point.x} ${point.y})`,
     });
-    group.appendChild(createSvgElement("circle", { r: 24 }));
+    group.appendChild(createSvgElement("circle", { class: "node-halo", r: 36 }));
+    group.appendChild(createSvgElement("circle", { class: "node-core", r: 24 }));
+    group.appendChild(createSvgElement("text", { class: "node-icon", y: 6 }));
+    group.lastChild.textContent = device.device_type === "access_point" ? "AP" : device.device_type[0].toUpperCase();
     group.appendChild(createSvgElement("text", { class: "node-label", y: 45 }));
     group.lastChild.textContent = device.device_id;
     group.appendChild(createSvgElement("text", { class: "node-meta", y: 62 }));
@@ -207,30 +223,46 @@ function publicDocIp() {
   return `${pick(["192.0.2", "198.51.100", "203.0.113"])}.${intBetween(1, 240)}`;
 }
 
+function scenarioSettings(source) {
+  const scenario = elements.scenarioSelect.value;
+  if (scenario === "normal") return { anomalyChance: 0, forceWireless: false };
+  if (scenario === "scan") return { anomalyChance: 0.65, forceWireless: false };
+  if (scenario === "wireless") return { anomalyChance: source.device_type === "access_point" ? 0.75 : 0.12, forceWireless: source.device_type === "access_point" };
+  return { anomalyChance: 0.22, forceWireless: false };
+}
+
 function generateEvent() {
   const source = pick(state.devices);
-  const link = pick(state.links.filter((item) => item.source === source.device_id || item.target === source.device_id) || state.links);
+  const localLinks = state.links.filter((item) => item.source === source.device_id || item.target === source.device_id);
+  const link = pick(localLinks.length ? localLinks : state.links);
   const targetId = link && link.source === source.device_id ? link.target : link?.source;
   const target = state.devices.find((device) => device.device_id === targetId) || pick(state.devices);
-  const isAnomaly = Math.random() < 0.22;
+  const settings = scenarioSettings(source);
+  const isAnomaly = Math.random() < settings.anomalyChance;
   const riskyPorts = [22, 23, 445, 3389, 8080];
   const normalPorts = [53, 80, 123, 443, 5432, 6379];
   const dstPort = pick(isAnomaly ? riskyPorts : normalPorts);
   const denied = isAnomaly && source.device_type === "firewall";
-  const latency = isAnomaly ? decimalBetween(65, 120) : decimalBetween(3, 38);
-  const label = denied ? "blocked_connection" : source.device_type === "access_point" && latency >= 24 ? "high_wireless_load" : isAnomaly ? "high_latency" : "normal";
+  const latency = isAnomaly || settings.forceWireless ? decimalBetween(65, 120) : decimalBetween(3, 38);
+  const alertLabel = denied
+    ? "blocked_connection"
+    : settings.forceWireless
+      ? "high_wireless_load"
+      : isAnomaly
+        ? "high_latency"
+        : "normal";
 
   return {
-    id: `evt-${String(state.eventCount + 1).padStart(6, "0")}`,
-    source,
-    target,
-    srcIp: denied ? publicDocIp() : privateIp(source.site),
+    alertLabel,
     dstIp: privateIp(target.site),
     dstPort,
-    protocol: Math.random() < 0.75 ? "TCP" : "UDP",
-    latency,
     flowAction: denied ? "deny" : "allow",
-    alertLabel: label,
+    id: `evt-${String(state.eventCount + 1).padStart(6, "0")}`,
+    latency,
+    protocol: Math.random() < 0.75 ? "TCP" : "UDP",
+    source,
+    srcIp: denied ? publicDocIp() : privateIp(source.site),
+    target,
   };
 }
 
@@ -255,10 +287,24 @@ function animateEvent(event) {
   targetNode?.classList.add("active");
   linkElement?.classList.add("active");
 
-  const point = viewBoxPoint(event.target);
-  const pulse = createSvgElement("circle", { class: "pulse running", cx: point.x, cy: point.y, r: 4 });
+  const sourcePoint = viewBoxPoint(event.source);
+  const targetPoint = viewBoxPoint(event.target);
+  const packet = createSvgElement("circle", { class: `packet ${event.flowAction === "deny" ? "denied" : ""}`, r: 7 });
+  const motion = createSvgElement("animateMotion", {
+    dur: "900ms",
+    fill: "freeze",
+    path: `M ${sourcePoint.x} ${sourcePoint.y} L ${targetPoint.x} ${targetPoint.y}`,
+  });
+  packet.appendChild(motion);
+  elements.map.appendChild(packet);
+  motion.beginElement();
+
+  const pulse = createSvgElement("circle", { class: "pulse running", cx: targetPoint.x, cy: targetPoint.y, r: 4 });
   elements.map.appendChild(pulse);
-  window.setTimeout(() => pulse.remove(), 900);
+  window.setTimeout(() => {
+    packet.remove();
+    pulse.remove();
+  }, 1000);
 }
 
 function renderEvent(event) {
@@ -266,12 +312,12 @@ function renderEvent(event) {
   card.className = `event ${event.alertLabel === "normal" ? "" : "anomaly"} ${event.flowAction === "deny" ? "denied" : ""}`;
   card.innerHTML = `
     <div class="event-title">
-      <span>${event.source.device_id} → ${event.target.device_id}</span>
+      <span>${event.source.device_id} -> ${event.target.device_id}</span>
       <span>${event.flowAction.toUpperCase()}</span>
     </div>
     <div class="event-detail">
-      ${event.protocol}/${event.dstPort} · ${event.srcIp} → ${event.dstIp}<br>
-      ${event.latency} ms · ${event.alertLabel}
+      ${event.protocol}/${event.dstPort} | ${event.srcIp} -> ${event.dstIp}<br>
+      ${event.latency} ms | ${event.alertLabel}
     </div>
   `;
   elements.eventList.prepend(card);
@@ -294,21 +340,27 @@ function tick() {
 }
 
 function startNetwork() {
+  if (!state.devices.length) {
+    elements.status.textContent = "Inventory is not loaded yet. Start the app with node server.js and refresh the page.";
+    return;
+  }
   if (state.running) return;
   state.running = true;
+  document.body.classList.add("network-running");
   elements.startButton.setAttribute("aria-pressed", "true");
-  elements.startButton.innerHTML = '<span class="button-icon" aria-hidden="true">■</span><span>Stop</span>';
+  elements.startButton.textContent = "Stop";
   elements.status.textContent = "Network is running. Telemetry is streaming.";
   elements.eventRate.textContent = "Live";
   tick();
-  state.timer = window.setInterval(tick, 1200);
+  state.timer = window.setInterval(tick, 900);
 }
 
 function stopNetwork() {
   state.running = false;
   window.clearInterval(state.timer);
+  document.body.classList.remove("network-running");
   elements.startButton.setAttribute("aria-pressed", "false");
-  elements.startButton.innerHTML = '<span class="button-icon" aria-hidden="true">▶</span><span>Start</span>';
+  elements.startButton.textContent = "Start";
   elements.status.textContent = "Network is stopped. Last telemetry remains visible.";
   elements.eventRate.textContent = "Paused";
   clearActivity();
@@ -320,12 +372,24 @@ function resetNetwork() {
   state.anomalyCount = 0;
   elements.eventList.innerHTML = "";
   elements.activeFlow.textContent = "No active flow";
-  elements.status.textContent = "Inventory loaded. Network is stopped.";
+  elements.status.textContent = state.devices.length ? "Inventory loaded. Network is stopped." : "Loading inventory...";
   elements.eventRate.textContent = "Idle";
   updateMetrics();
 }
 
+function bindControls() {
+  elements.startButton.addEventListener("click", () => {
+    if (state.running) {
+      stopNetwork();
+    } else {
+      startNetwork();
+    }
+  });
+  elements.resetButton.addEventListener("click", resetNetwork);
+}
+
 async function init() {
+  bindControls();
   const response = await fetch(inventoryPath);
   if (!response.ok) {
     throw new Error("Could not load network inventory.");
@@ -337,15 +401,7 @@ async function init() {
   renderMap();
   renderInventory();
   updateMetrics();
-
-  elements.startButton.addEventListener("click", () => {
-    if (state.running) {
-      stopNetwork();
-    } else {
-      startNetwork();
-    }
-  });
-  elements.resetButton.addEventListener("click", resetNetwork);
+  elements.status.textContent = "Inventory loaded. Network is stopped.";
 }
 
 init().catch((error) => {

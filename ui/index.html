@@ -11,15 +11,21 @@
       <section class="topbar" aria-label="Network controls">
         <div>
           <h1>Network Analysis</h1>
-          <p id="networkStatus">Inventory loaded. Network is stopped.</p>
+          <p id="networkStatus">Loading inventory...</p>
         </div>
         <div class="controls">
+          <label class="select-label" for="scenarioSelect">Scenario</label>
+          <select id="scenarioSelect" aria-label="Traffic scenario">
+            <option value="mixed">Mixed traffic</option>
+            <option value="normal">Normal</option>
+            <option value="scan">Port scan</option>
+            <option value="wireless">Wireless load</option>
+          </select>
           <button id="startButton" class="primary-button" type="button" aria-pressed="false">
-            <span class="button-icon" aria-hidden="true">▶</span>
             <span>Start</span>
           </button>
           <button id="resetButton" class="icon-button" type="button" aria-label="Reset simulation" title="Reset simulation">
-            ↺
+            Reset
           </button>
         </div>
       </section>
@@ -47,7 +53,7 @@
         <div class="network-panel">
           <div class="panel-header">
             <h2>Topology</h2>
-            <span id="activeFlow">No active flow</span>
+            <span id="activeFlow" class="status-pill">No active flow</span>
           </div>
           <svg id="networkMap" role="img" aria-label="Network topology visualization"></svg>
         </div>
