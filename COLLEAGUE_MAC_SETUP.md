@@ -1,6 +1,6 @@
 # Network Analysis: Mac Setup For Claude
 
-This guide helps you run the Network Analysis project on a Mac and work on it with Claude.
+This guide helps you run the Network Analysis project on a Mac and work on it with Claude. You do not need VS Code unless you personally prefer it.
 
 ## What This Project Is
 
@@ -24,6 +24,11 @@ Install these two tools:
 2. **Node.js LTS**  
    Download from: `https://nodejs.org/`  
    Choose the **LTS** version.
+
+Optional:
+
+- **VS Code**  
+  Only install this if you want a code editor. It is not required for the basic workflow.
 
 After installing Node.js, restart your Mac or fully close and reopen Terminal.
 
@@ -93,9 +98,97 @@ Go back to Terminal and press:
 Control + C
 ```
 
-## 7. Working With Claude
+## 7. Working With Claude Only
 
-Use Claude for focused changes. Give it a specific goal and tell it which files to edit.
+You can make code changes with Claude only, as long as your Claude setup can access the project files or the GitHub repository.
+
+Recommended simple workflow:
+
+```text
+GitHub Desktop = sync the project
+Claude = make code changes
+Terminal = run the app
+Browser = test the dashboard
+```
+
+VS Code is optional. It can be helpful for viewing files, but it is not required.
+
+If Claude cannot directly edit your local files, use one of these options:
+
+- Use Claude Code or a Claude setup with local folder access.
+- Ask Claude for the exact file changes and paste them into GitHub's web editor.
+- Ask Claude for a patch and apply it manually.
+
+## 8. Connecting Claude To Git
+
+Claude should not receive your GitHub password or personal access token in chat. Use GitHub Desktop or your Claude tool's built-in GitHub connection instead.
+
+### Option A: Claude Edits Local Files
+
+Use this if Claude can open a local project folder.
+
+1. Clone the project with GitHub Desktop.
+2. Open the `network-analysis` folder in Claude.
+3. Ask Claude to make a specific change.
+4. Run the app locally:
+
+```bash
+node server.js
+```
+
+5. Test in the browser:
+
+```text
+http://localhost:3000
+```
+
+6. Go back to GitHub Desktop.
+7. Review the changed files.
+8. Commit and push.
+
+In this setup:
+
+```text
+Claude edits files
+GitHub Desktop commits and pushes
+```
+
+### Option B: Claude Connects To GitHub
+
+Use this if your Claude product has a GitHub connector.
+
+1. In Claude, connect the GitHub account using Claude's official GitHub connection flow.
+2. Select the `network-analysis` repository.
+3. Ask Claude to work on a branch, not directly on `main`.
+4. Ask Claude to open a pull request when the change is ready.
+
+Good prompt:
+
+```text
+Use the network-analysis GitHub repo.
+Create a branch called feature/care-dashboard-summary.
+Improve the Care Desk tab so Platinum SLA risks are sorted first.
+Open a pull request when done.
+```
+
+### Option C: Claude Gives Instructions Only
+
+Use this if Claude cannot directly edit files or connect to GitHub.
+
+1. Ask Claude for exact file changes.
+2. Apply the changes manually in GitHub's web editor or a local editor.
+3. Use GitHub Desktop to commit and push.
+
+### Important Git Rules
+
+- Pull before starting work.
+- Work on a branch for bigger changes.
+- Do not share passwords or tokens with Claude in chat.
+- Commit small, understandable changes.
+- Push changes so the rest of the team can see them.
+- Use pull requests before merging bigger changes.
+
+## 9. Prompting Claude
 
 Good prompt:
 
@@ -118,7 +211,7 @@ Avoid vague prompts like:
 Make the dashboard better.
 ```
 
-## 8. Saving And Sharing Changes
+## 10. Saving And Sharing Changes
 
 After Claude or you make changes:
 
