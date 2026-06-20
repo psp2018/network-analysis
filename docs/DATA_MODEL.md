@@ -50,6 +50,29 @@ This lets you answer questions like:
 - Which owner team is responsible for denied flows?
 - Which firewall devices block risky ports most often?
 
+## Business Impact Table
+
+`customer_sla_mapping`
+
+One row per customer-facing service dependency. This maps customers and SLA tiers to the network sites and primary devices that support them.
+
+Join fields:
+
+- `customer_sla_mapping.primary_device_id`
+- `network_infra_inventory.device_id`
+
+The UI also uses site-level fallback matching when an anomaly touches a device at the same site as a customer service.
+
+Useful fields:
+
+- `customer_name`
+- `service_name`
+- `sla_tier`
+- `sla_target`
+- `impact_weight`
+- `business_owner`
+- `escalation_group`
+
 The Node.js telemetry generator also uses `network_infra_inventory` as the master source for devices. Active devices with `monitoring_enabled` set to `true` are eligible for generated telemetry.
 
 ## Example Join

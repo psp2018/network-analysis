@@ -11,13 +11,16 @@ The project has two parts:
 
 - `data/network_telemetry_base.csv` - curated base telemetry sample.
 - `data/network_infra_inventory.csv` - master inventory table for network devices.
+- `data/customer_sla_mapping.csv` - customer and SLA mapping for business impact.
 - `schema/network_telemetry_base.sql` - SQL table definition.
 - `schema/network_infra_inventory.sql` - standalone SQL definition for the inventory table.
+- `schema/customer_sla_mapping.sql` - SQL definition for customer/SLA service mapping.
 - `scripts/telemetry_agent.js` - runnable telemetry generator.
 - `scripts/telemetry_agent.ps1` - PowerShell generator for Windows without Node.js.
 - `scripts/telemetry_agent.py` - Python version for environments with Python.
 - `docs/DATA_MODEL.md` - relationship between infrastructure inventory and telemetry.
 - `SETUP.md` - step-by-step usage and collaboration guide.
+- `COLLEAGUE_MAC_SETUP.md` - one-page setup guide for a Mac user working with Claude.
 - `PROJECT_PLAN.md` - recommended next build steps.
 
 ## Generate Data
@@ -33,6 +36,8 @@ Then open:
 ```text
 http://localhost:3000
 ```
+
+The UI saves live events in the browser so refreshes keep the current session. Use **Export CSV** to download a telemetry session file, or **Clear** to remove saved events and anomalies after confirmation.
 
 Generate CSV with PowerShell:
 

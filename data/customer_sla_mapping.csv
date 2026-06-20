@@ -1,0 +1,7 @@
+customer_id,customer_name,service_name,site,primary_device_id,sla_tier,sla_target,impact_weight,business_owner,escalation_group
+cust-001,Acme Bank,Payments API,zurich-hq,fw-hq-01,Platinum,99.99%,critical,Financial Services,major-incident
+cust-002,Helvetia Retail,Point of Sale Network,zurich-hq,core-sw-01,Gold,99.9%,high,Retail Operations,service-desk
+cust-003,Northstar Health,Patient Portal,geneva-branch,edge-rtr-02,Platinum,99.99%,critical,Healthcare Platforms,major-incident
+cust-004,Alpine Logistics,Fleet Tracking,basel-branch,fw-branch-02,Gold,99.9%,high,Logistics Operations,service-desk
+cust-005,Internal IT,Corporate WiFi,zurich-hq,ap-floor1-03,Silver,99.5%,medium,Workplace Technology,network-operations
+cust-006,Executive Office,Executive WiFi,zurich-hq,ap-floor3-07,Gold,99.9%,high,Executive Support,service-desk

@@ -1,24 +1,38 @@
-const inventoryPath = "../data/network_infra_inventory.csv";
+const inventoryPath = "/data/network_infra_inventory.csv";
+const customerSlaPath = "/data/customer_sla_mapping.csv";
+const storageKey = "network-analysis-live-events";
 
 const elements = {
   activeFlow: document.getElementById("activeFlow"),
   anomalyCount: document.getElementById("anomalyCount"),
+  anomaliesTab: document.getElementById("anomaliesTab"),
+  anomaliesTabCount: document.getElementById("anomaliesTabCount"),
+  careTab: document.getElementById("careTab"),
+  careTabCount: document.getElementById("careTabCount"),
   deviceCount: document.getElementById("deviceCount"),
   eventCount: document.getElementById("eventCount"),
+  exportButton: document.getElementById("exportButton"),
   eventList: document.getElementById("eventList"),
   eventRate: document.getElementById("eventRate"),
+  eventsTab: document.getElementById("eventsTab"),
+  eventsTabCount: document.getElementById("eventsTabCount"),
   inventoryTable: document.getElementById("inventoryTable"),
   linkCount: document.getElementById("linkCount"),
   map: document.getElementById("networkMap"),
+  platinumRiskCount: document.getElementById("platinumRiskCount"),
   resetButton: document.getElementById("resetButton"),
   scenarioSelect: document.getElementById("scenarioSelect"),
   startButton: document.getElementById("startButton"),
   status: document.getElementById("networkStatus"),
+  ticketRiskCount: document.getElementById("ticketRiskCount"),
 };
 
 const state = {
   anomalyCount: 0,
+  activeTab: "events",
+  customerServices: [],
   devices: [],
+  events: [],
   eventCount: 0,
   links: [],
   running: false,
@@ -203,10 +217,16 @@ function renderInventory() {
 }
 
 function updateMetrics() {
+  const careItems = careDeskItems();
   elements.deviceCount.textContent = state.devices.length;
   elements.linkCount.textContent = state.links.length;
   elements.eventCount.textContent = state.eventCount;
   elements.anomalyCount.textContent = state.anomalyCount;
+  elements.eventsTabCount.textContent = state.events.length;
+  elements.anomaliesTabCount.textContent = state.events.filter(isAnomalyEvent).length;
+  elements.careTabCount.textContent = careItems.length;
+  elements.platinumRiskCount.textContent = careItems.filter((item) => item.slaTier === "Platinum").length;
+  elements.ticketRiskCount.textContent = careItems.length;
 }
 
 function privateIp(site) {
@@ -223,12 +243,154 @@ function publicDocIp() {
   return `${pick(["192.0.2", "198.51.100", "203.0.113"])}.${intBetween(1, 240)}`;
 }
 
+function eventToRecord(event) {
+  return {
+    id: event.id,
+    timestamp: event.timestamp,
+    source_device_id: event.source.device_id,
+    source_site: event.source.site,
+    target_device_id: event.target.device_id,
+    target_site: event.target.site,
+    src_ip: event.srcIp,
+    dst_ip: event.dstIp,
+    dst_port: event.dstPort,
+    protocol: event.protocol,
+    latency_ms: event.latency,
+    flow_action: event.flowAction,
+    alert_label: event.alertLabel,
+    customer_name: event.businessImpact?.customerName || "",
+    service_name: event.businessImpact?.serviceName || "",
+    sla_tier: event.businessImpact?.slaTier || "",
+    sla_target: event.businessImpact?.slaTarget || "",
+    impact_level: event.businessImpact?.impactLevel || "",
+    impact_weight: event.businessImpact?.impactWeight || "",
+    impact_summary: event.businessImpact?.impactSummary || "",
+    business_owner: event.businessImpact?.businessOwner || "",
+    escalation_group: event.businessImpact?.escalationGroup || "",
+  };
+}
+
+function recordToEvent(record) {
+  const source = state.devices.find((device) => device.device_id === record.source_device_id) || {
+    device_id: record.source_device_id,
+    site: record.source_site,
+    device_type: "unknown",
+  };
+  const target = state.devices.find((device) => device.device_id === record.target_device_id) || {
+    device_id: record.target_device_id,
+    site: record.target_site,
+    device_type: "unknown",
+  };
+
+  return {
+    alertLabel: record.alert_label,
+    businessImpact: {
+      businessOwner: record.business_owner || "Unknown",
+      customerName: record.customer_name || "Unknown customer",
+      escalationGroup: record.escalation_group || "service-desk",
+      impactLevel: record.impact_level || "Low",
+      impactSummary: record.impact_summary || "No business impact summary saved.",
+      impactWeight: record.impact_weight || "low",
+      serviceName: record.service_name || "Unknown service",
+      slaTarget: record.sla_target || "Unknown",
+      slaTier: record.sla_tier || "Unassigned",
+    },
+    dstIp: record.dst_ip,
+    dstPort: Number(record.dst_port),
+    flowAction: record.flow_action,
+    id: record.id,
+    latency: Number(record.latency_ms),
+    protocol: record.protocol,
+    source,
+    srcIp: record.src_ip,
+    target,
+    timestamp: record.timestamp,
+  };
+}
+
+function saveEvents() {
+  const records = state.events.map(eventToRecord);
+  localStorage.setItem(storageKey, JSON.stringify(records));
+}
+
+function loadSavedEvents() {
+  const raw = localStorage.getItem(storageKey);
+  if (!raw) return;
+
+  try {
+    const records = JSON.parse(raw);
+    state.events = records.map(recordToEvent);
+    state.eventCount = state.events.length;
+    state.anomalyCount = state.events.filter(isAnomalyEvent).length;
+    if (state.events[0]) {
+      elements.activeFlow.textContent = `${state.events[0].source.device_id} to ${state.events[0].target.device_id}`;
+    }
+  } catch {
+    localStorage.removeItem(storageKey);
+  }
+}
+
+function clearSavedEvents() {
+  localStorage.removeItem(storageKey);
+}
+
 function scenarioSettings(source) {
   const scenario = elements.scenarioSelect.value;
   if (scenario === "normal") return { anomalyChance: 0, forceWireless: false };
   if (scenario === "scan") return { anomalyChance: 0.65, forceWireless: false };
   if (scenario === "wireless") return { anomalyChance: source.device_type === "access_point" ? 0.75 : 0.12, forceWireless: source.device_type === "access_point" };
   return { anomalyChance: 0.22, forceWireless: false };
+}
+
+function impactLevelFor(service, event) {
+  if (event.flowAction === "deny" && service.sla_tier === "Platinum") return "Severe";
+  if (event.flowAction === "deny") return "High";
+  if (event.latency >= 100 && ["Platinum", "Gold"].includes(service.sla_tier)) return "High";
+  if (event.latency >= 65) return "Medium";
+  return "Low";
+}
+
+function findImpactedService(event) {
+  const directMatch = state.customerServices.find((service) =>
+    service.primary_device_id === event.source.device_id || service.primary_device_id === event.target.device_id,
+  );
+  if (directMatch) return directMatch;
+
+  return state.customerServices.find((service) =>
+    service.site === event.source.site || service.site === event.target.site,
+  ) || {
+    business_owner: "Network Operations",
+    customer_name: "Internal Operations",
+    escalation_group: "network-operations",
+    impact_weight: "low",
+    service_name: "Shared Network",
+    sla_target: "Best effort",
+    sla_tier: "Internal",
+  };
+}
+
+function businessImpactFor(event) {
+  const service = findImpactedService(event);
+  const impactLevel = impactLevelFor(service, event);
+  const cause = event.flowAction === "deny"
+    ? "blocked traffic"
+    : event.alertLabel === "high_wireless_load"
+      ? "wireless congestion"
+      : event.alertLabel === "high_latency"
+        ? "high latency"
+        : "network degradation";
+
+  return {
+    businessOwner: service.business_owner,
+    customerName: service.customer_name,
+    escalationGroup: service.escalation_group,
+    impactLevel,
+    impactSummary: `${service.service_name} may be affected by ${cause} at ${event.target.site}.`,
+    impactWeight: service.impact_weight,
+    serviceName: service.service_name,
+    slaTarget: service.sla_target,
+    slaTier: service.sla_tier,
+  };
 }
 
 function generateEvent() {
@@ -252,8 +414,9 @@ function generateEvent() {
         ? "high_latency"
         : "normal";
 
-  return {
+  const event = {
     alertLabel,
+    businessImpact: null,
     dstIp: privateIp(target.site),
     dstPort,
     flowAction: denied ? "deny" : "allow",
@@ -263,7 +426,14 @@ function generateEvent() {
     source,
     srcIp: denied ? publicDocIp() : privateIp(source.site),
     target,
+    timestamp: new Date().toISOString(),
   };
+  event.businessImpact = businessImpactFor(event);
+  return event;
+}
+
+function isAnomalyEvent(event) {
+  return event.alertLabel !== "normal" || event.flowAction === "deny";
 }
 
 function clearActivity() {
@@ -307,24 +477,182 @@ function animateEvent(event) {
   }, 1000);
 }
 
-function renderEvent(event) {
-  const card = document.createElement("article");
-  card.className = `event ${event.alertLabel === "normal" ? "" : "anomaly"} ${event.flowAction === "deny" ? "denied" : ""}`;
-  card.innerHTML = `
-    <div class="event-title">
-      <span>${event.source.device_id} -> ${event.target.device_id}</span>
-      <span>${event.flowAction.toUpperCase()}</span>
-    </div>
-    <div class="event-detail">
-      ${event.protocol}/${event.dstPort} | ${event.srcIp} -> ${event.dstIp}<br>
-      ${event.latency} ms | ${event.alertLabel}
-    </div>
-  `;
-  elements.eventList.prepend(card);
+function eventCardHtml(event) {
+  const impact = event.businessImpact;
+  const impactHtml = isAnomalyEvent(event) && impact
+    ? `
+      <div class="business-impact ${impact.impactLevel.toLowerCase()}">
+        <div class="impact-header">
+          <span>${impact.customerName}</span>
+          <strong>${impact.slaTier} SLA</strong>
+        </div>
+        <div>${impact.serviceName} | ${impact.impactLevel} impact | Target ${impact.slaTarget}</div>
+        <div>${impact.impactSummary}</div>
+        <div>Owner: ${impact.businessOwner} | Escalate: ${impact.escalationGroup}</div>
+      </div>
+    `
+    : "";
 
-  while (elements.eventList.children.length > 16) {
-    elements.eventList.lastElementChild.remove();
+  return `
+    <article class="event ${event.alertLabel === "normal" ? "" : "anomaly"} ${event.flowAction === "deny" ? "denied" : ""}">
+      <div class="event-title">
+        <span>${event.source.device_id} -> ${event.target.device_id}</span>
+        <span>${event.flowAction.toUpperCase()}</span>
+      </div>
+      <div class="event-detail">
+        ${new Date(event.timestamp).toLocaleTimeString()}<br>
+        ${event.protocol}/${event.dstPort} | ${event.srcIp} -> ${event.dstIp}<br>
+        ${event.latency} ms | ${event.alertLabel}
+      </div>
+      ${impactHtml}
+    </article>
+  `;
+}
+
+function severityRank(level) {
+  return {
+    Low: 1,
+    Medium: 2,
+    High: 3,
+    Severe: 4,
+  }[level] || 0;
+}
+
+function careDeskItems() {
+  const grouped = new Map();
+  for (const event of state.events.filter(isAnomalyEvent)) {
+    const impact = event.businessImpact;
+    if (!impact) continue;
+
+    const key = `${impact.customerName}|${impact.serviceName}`;
+    const existing = grouped.get(key);
+    if (!existing) {
+      grouped.set(key, {
+        businessOwner: impact.businessOwner,
+        customerName: impact.customerName,
+        escalationGroup: impact.escalationGroup,
+        eventCount: 1,
+        impactLevel: impact.impactLevel,
+        latestEvent: event,
+        serviceName: impact.serviceName,
+        slaTarget: impact.slaTarget,
+        slaTier: impact.slaTier,
+      });
+      continue;
+    }
+
+    existing.eventCount += 1;
+    if (severityRank(impact.impactLevel) > severityRank(existing.impactLevel)) {
+      existing.impactLevel = impact.impactLevel;
+      existing.latestEvent = event;
+    }
   }
+
+  return Array.from(grouped.values()).sort((left, right) => {
+    const slaDelta = Number(right.slaTier === "Platinum") - Number(left.slaTier === "Platinum");
+    if (slaDelta) return slaDelta;
+    const severityDelta = severityRank(right.impactLevel) - severityRank(left.impactLevel);
+    if (severityDelta) return severityDelta;
+    return right.eventCount - left.eventCount;
+  });
+}
+
+function careCardHtml(item) {
+  const isPlatinum = item.slaTier === "Platinum";
+  const likelyTicket = isPlatinum || ["High", "Severe"].includes(item.impactLevel);
+  return `
+    <article class="care-card ${item.impactLevel.toLowerCase()} ${isPlatinum ? "platinum" : ""}">
+      <div class="care-title">
+        <span>${item.customerName}</span>
+        <strong>${likelyTicket ? "Likely ticket" : "Watch"}</strong>
+      </div>
+      <div class="care-service">${item.serviceName}</div>
+      <div class="care-grid">
+        <span>SLA</span><strong>${item.slaTier} / ${item.slaTarget}</strong>
+        <span>Impact</span><strong>${item.impactLevel}</strong>
+        <span>Events</span><strong>${item.eventCount}</strong>
+        <span>Escalate</span><strong>${item.escalationGroup}</strong>
+      </div>
+      <div class="care-summary">
+        ${item.latestEvent.alertLabel} on ${item.latestEvent.target.site}. Owner: ${item.businessOwner}.
+      </div>
+    </article>
+  `;
+}
+
+function renderCareDesk() {
+  const items = careDeskItems();
+  elements.eventList.innerHTML = items.length
+    ? items.map(careCardHtml).join("")
+    : `<div class="empty-state">No customer-impact risks yet. Port scan is the fastest way to test this view.</div>`;
+}
+
+function renderEvents() {
+  if (state.activeTab === "care") {
+    renderCareDesk();
+    return;
+  }
+  const visibleEvents = state.activeTab === "anomalies" ? state.events.filter(isAnomalyEvent) : state.events;
+  const emptyText = state.activeTab === "anomalies"
+    ? "No anomalies yet. Try Port scan or Wireless load."
+    : "No events yet. Click Start to stream telemetry.";
+
+  elements.eventList.innerHTML = visibleEvents.length
+    ? visibleEvents.slice(0, 16).map(eventCardHtml).join("")
+    : `<div class="empty-state">${emptyText}</div>`;
+}
+
+function addEvent(event) {
+  state.events.unshift(event);
+  if (state.events.length > 200) {
+    state.events.length = 200;
+  }
+  saveEvents();
+  renderEvents();
+}
+
+function csvEscape(value) {
+  const text = String(value ?? "");
+  if (text.includes(",") || text.includes('"') || text.includes("\n")) {
+    return `"${text.replaceAll('"', '""')}"`;
+  }
+  return text;
+}
+
+function exportCsv() {
+  if (!state.events.length) {
+    window.alert("No events to export yet. Click Start to generate telemetry first.");
+    return;
+  }
+
+  const records = state.events.map(eventToRecord);
+  const headers = Object.keys(records[0]);
+  const csv = [
+    headers.join(","),
+    ...records.map((record) => headers.map((header) => csvEscape(record[header])).join(",")),
+  ].join("\n");
+  const blob = new Blob([`${csv}\n`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const timestamp = new Date().toISOString().replaceAll(":", "-").slice(0, 19);
+  link.href = url;
+  link.download = `network-telemetry-session-${timestamp}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function setActiveTab(tabName) {
+  state.activeTab = tabName;
+  const isEvents = tabName === "events";
+  const isAnomalies = tabName === "anomalies";
+  const isCare = tabName === "care";
+  elements.eventsTab.classList.toggle("active", isEvents);
+  elements.anomaliesTab.classList.toggle("active", isAnomalies);
+  elements.careTab.classList.toggle("active", isCare);
+  elements.eventsTab.setAttribute("aria-selected", String(isEvents));
+  elements.anomaliesTab.setAttribute("aria-selected", String(isAnomalies));
+  elements.careTab.setAttribute("aria-selected", String(isCare));
+  renderEvents();
 }
 
 function tick() {
@@ -335,7 +663,7 @@ function tick() {
   }
   elements.activeFlow.textContent = `${event.source.device_id} to ${event.target.device_id}`;
   animateEvent(event);
-  renderEvent(event);
+  addEvent(event);
   updateMetrics();
 }
 
@@ -367,14 +695,20 @@ function stopNetwork() {
 }
 
 function resetNetwork() {
+  const hasData = state.eventCount > 0 || state.anomalyCount > 0 || state.events.length > 0;
+  if (hasData && !window.confirm("Clear all events and anomalies? This resets the live telemetry view and counters.")) {
+    return;
+  }
   stopNetwork();
   state.eventCount = 0;
   state.anomalyCount = 0;
-  elements.eventList.innerHTML = "";
+  state.events = [];
+  clearSavedEvents();
   elements.activeFlow.textContent = "No active flow";
   elements.status.textContent = state.devices.length ? "Inventory loaded. Network is stopped." : "Loading inventory...";
   elements.eventRate.textContent = "Idle";
   updateMetrics();
+  renderEvents();
 }
 
 function bindControls() {
@@ -386,22 +720,36 @@ function bindControls() {
     }
   });
   elements.resetButton.addEventListener("click", resetNetwork);
+  elements.exportButton.addEventListener("click", exportCsv);
+  elements.eventsTab.addEventListener("click", () => setActiveTab("events"));
+  elements.anomaliesTab.addEventListener("click", () => setActiveTab("anomalies"));
+  elements.careTab.addEventListener("click", () => setActiveTab("care"));
 }
 
 async function init() {
   bindControls();
-  const response = await fetch(inventoryPath);
+  const [response, customerResponse] = await Promise.all([
+    fetch(inventoryPath),
+    fetch(customerSlaPath),
+  ]);
   if (!response.ok) {
     throw new Error("Could not load network inventory.");
   }
+  if (!customerResponse.ok) {
+    throw new Error("Could not load customer SLA mapping.");
+  }
   const csv = await response.text();
+  const customerCsv = await customerResponse.text();
   state.devices = layoutDevices(parseCsv(csv).map(normalizeDevice).filter((device) => device.status === "active" && device.monitoring_enabled));
+  state.customerServices = parseCsv(customerCsv);
   state.links = buildLinks(state.devices);
+  loadSavedEvents();
 
   renderMap();
   renderInventory();
   updateMetrics();
-  elements.status.textContent = "Inventory loaded. Network is stopped.";
+  renderEvents();
+  elements.status.textContent = "Inventory and customer SLA mapping loaded. Network is stopped.";
 }
 
 init().catch((error) => {

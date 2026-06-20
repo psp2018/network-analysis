@@ -32,6 +32,10 @@ http://localhost:3000
 
 Press **Start** in the UI to begin streaming simulated network telemetry.
 
+The UI keeps live events in browser storage, so refreshing the page or restarting the local server will reload the current session in the same browser. Use **Export CSV** to download the session, or **Clear** to delete saved events and anomalies after confirmation.
+
+Anomalies are enriched with business impact from `data/customer_sla_mapping.csv`, including customer name, service, SLA tier, SLA target, business owner, and escalation group.
+
 Generate 100 CSV rows with PowerShell:
 
 ```powershell

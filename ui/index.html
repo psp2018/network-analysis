@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Network Analysis</title>
-    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="/ui/styles.css">
   </head>
   <body>
     <main class="app-shell">
@@ -24,8 +24,11 @@
           <button id="startButton" class="primary-button" type="button" aria-pressed="false">
             <span>Start</span>
           </button>
+          <button id="exportButton" class="icon-button" type="button" aria-label="Export telemetry CSV" title="Export telemetry CSV">
+            Export CSV
+          </button>
           <button id="resetButton" class="icon-button" type="button" aria-label="Reset simulation" title="Reset simulation">
-            Reset
+            Clear
           </button>
         </div>
       </section>
@@ -47,6 +50,14 @@
           <span class="metric-label">Anomalies</span>
           <strong id="anomalyCount">0</strong>
         </div>
+        <div class="metric care-metric">
+          <span class="metric-label">Platinum Risk</span>
+          <strong id="platinumRiskCount">0</strong>
+        </div>
+        <div class="metric care-metric">
+          <span class="metric-label">Likely Tickets</span>
+          <strong id="ticketRiskCount">0</strong>
+        </div>
       </section>
 
       <section class="workspace">
@@ -62,6 +73,20 @@
           <div class="panel-header">
             <h2>Live Telemetry</h2>
             <span id="eventRate">Idle</span>
+          </div>
+          <div class="tabs" role="tablist" aria-label="Telemetry views">
+            <button id="eventsTab" class="tab-button active" type="button" role="tab" aria-selected="true" aria-controls="eventList">
+              Events
+              <span id="eventsTabCount">0</span>
+            </button>
+            <button id="anomaliesTab" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="eventList">
+              Anomalies
+              <span id="anomaliesTabCount">0</span>
+            </button>
+            <button id="careTab" class="tab-button" type="button" role="tab" aria-selected="false" aria-controls="eventList">
+              Care Desk
+              <span id="careTabCount">0</span>
+            </button>
           </div>
           <div id="eventList" class="event-list" aria-live="polite"></div>
         </aside>
@@ -91,6 +116,6 @@
       </section>
     </main>
 
-    <script src="./app.js"></script>
+    <script src="/ui/app.js"></script>
   </body>
 </html>
