@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Network Analysis</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar" aria-label="Network controls">
+        <div>
+          <h1>Network Analysis</h1>
+          <p id="networkStatus">Inventory loaded. Network is stopped.</p>
+        </div>
+        <div class="controls">
+          <button id="startButton" class="primary-button" type="button" aria-pressed="false">
+            <span class="button-icon" aria-hidden="true">▶</span>
+            <span>Start</span>
+          </button>
+          <button id="resetButton" class="icon-button" type="button" aria-label="Reset simulation" title="Reset simulation">
+            ↺
+          </button>
+        </div>
+      </section>
+
+      <section class="metrics-grid" aria-label="Network summary">
+        <div class="metric">
+          <span class="metric-label">Devices</span>
+          <strong id="deviceCount">0</strong>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Links</span>
+          <strong id="linkCount">0</strong>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Events</span>
+          <strong id="eventCount">0</strong>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Anomalies</span>
+          <strong id="anomalyCount">0</strong>
+        </div>
+      </section>
+
+      <section class="workspace">
+        <div class="network-panel">
+          <div class="panel-header">
+            <h2>Topology</h2>
+            <span id="activeFlow">No active flow</span>
+          </div>
+          <svg id="networkMap" role="img" aria-label="Network topology visualization"></svg>
+        </div>
+
+        <aside class="side-panel" aria-label="Telemetry details">
+          <div class="panel-header">
+            <h2>Live Telemetry</h2>
+            <span id="eventRate">Idle</span>
+          </div>
+          <div id="eventList" class="event-list" aria-live="polite"></div>
+        </aside>
+      </section>
+
+      <section class="inventory-section" aria-label="Infrastructure inventory">
+        <div class="panel-header">
+          <h2>Infrastructure Inventory</h2>
+          <span>Master table</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Device</th>
+                <th>Type</th>
+                <th>Site</th>
+                <th>Role</th>
+                <th>Vendor</th>
+                <th>Criticality</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryTable"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

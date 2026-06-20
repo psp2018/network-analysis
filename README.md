@@ -22,6 +22,18 @@ The project has two parts:
 
 ## Generate Data
 
+Start the visual UI:
+
+```powershell
+npm.cmd start
+```
+
+Then open:
+
+```text
+http://localhost:3000
+```
+
 Generate CSV with PowerShell:
 
 ```powershell

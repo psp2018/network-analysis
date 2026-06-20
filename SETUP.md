@@ -18,6 +18,20 @@ From the project folder:
 cd C:\Users\ps_pr\Documents\Codex\2026-05-09\my-end-goal-is-to-create\network-analysis
 ```
 
+Start the visual network UI:
+
+```powershell
+npm.cmd start
+```
+
+Then open:
+
+```text
+http://localhost:3000
+```
+
+Press **Start** in the UI to begin streaming simulated network telemetry.
+
 Generate 100 CSV rows with PowerShell:
 
 ```powershell
