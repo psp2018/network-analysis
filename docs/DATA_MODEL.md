@@ -50,6 +50,8 @@ This lets you answer questions like:
 - Which owner team is responsible for denied flows?
 - Which firewall devices block risky ports most often?
 
+The Node.js telemetry generator also uses `network_infra_inventory` as the master source for devices. Active devices with `monitoring_enabled` set to `true` are eligible for generated telemetry.
+
 ## Example Join
 
 ```sql

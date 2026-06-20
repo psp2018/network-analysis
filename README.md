@@ -34,6 +34,12 @@ Generate CSV with Node.js:
 node .\scripts\telemetry_agent.js --count 100 --anomaly-rate 0.15 --format csv --output .\data\generated_network_telemetry.csv
 ```
 
+The Node.js generator reads devices from `data/network_infra_inventory.csv` by default. To use another inventory file:
+
+```powershell
+node .\scripts\telemetry_agent.js --inventory .\data\network_infra_inventory.csv --count 100 --format csv --output .\data\generated_network_telemetry.csv
+```
+
 Generate JSON:
 
 ```powershell

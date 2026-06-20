@@ -1,17 +1,6 @@
 const fs = require("fs");
 const path = require("path");
 
-const devices = [
-  { device_id: "edge-rtr-01", device_type: "router", site: "zurich-hq", interfaces: ["ge-0/0/1", "ge-0/0/2"] },
-  { device_id: "edge-rtr-02", device_type: "router", site: "geneva-branch", interfaces: ["ge-0/0/0", "ge-0/0/1"] },
-  { device_id: "core-sw-01", device_type: "switch", site: "zurich-hq", interfaces: ["xe-0/1/0", "xe-0/1/2", "xe-0/1/3"] },
-  { device_id: "core-sw-02", device_type: "switch", site: "zurich-hq", interfaces: ["xe-0/1/1", "xe-0/1/2"] },
-  { device_id: "fw-hq-01", device_type: "firewall", site: "zurich-hq", interfaces: ["wan0", "lan0"] },
-  { device_id: "fw-branch-02", device_type: "firewall", site: "basel-branch", interfaces: ["wan1", "lan1"] },
-  { device_id: "ap-floor1-03", device_type: "access_point", site: "zurich-hq", interfaces: ["wlan0"] },
-  { device_id: "ap-floor3-07", device_type: "access_point", site: "zurich-hq", interfaces: ["wlan0"] },
-];
-
 const normalPorts = [53, 80, 123, 443, 5432, 6379];
 const riskyPorts = [22, 23, 445, 3389, 8080];
 const fieldNames = [
@@ -54,6 +43,7 @@ function parseArgs(argv) {
     count: 100,
     anomalyRate: 0.15,
     format: "csv",
+    inventory: path.join("data", "network_infra_inventory.csv"),
     output: null,
     seed: null,
   };
@@ -69,6 +59,9 @@ function parseArgs(argv) {
       i += 1;
     } else if (key === "--format") {
       args.format = value;
+      i += 1;
+    } else if (key === "--inventory") {
+      args.inventory = value;
       i += 1;
     } else if (key === "--output") {
       args.output = value;
@@ -91,6 +84,71 @@ function parseArgs(argv) {
   return args;
 }
 
+function parseCsvLine(line) {
+  const values = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const nextChar = line[index + 1];
+
+    if (char === '"' && inQuotes && nextChar === '"') {
+      current += '"';
+      index += 1;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      values.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+
+  values.push(current);
+  return values;
+}
+
+function readCsv(filePath) {
+  const csv = fs.readFileSync(filePath, "utf8").trim();
+  const [headerLine, ...lines] = csv.split(/\r?\n/);
+  const headers = parseCsvLine(headerLine);
+
+  return lines.filter(Boolean).map((line) => {
+    const values = parseCsvLine(line);
+    return Object.fromEntries(headers.map((header, index) => [header, values[index] || ""]));
+  });
+}
+
+function loadInventory(inventoryPath) {
+  const resolvedPath = path.resolve(inventoryPath);
+  if (!fs.existsSync(resolvedPath)) {
+    throw new Error(`Inventory file not found: ${resolvedPath}`);
+  }
+
+  const devices = readCsv(resolvedPath)
+    .filter((device) => device.status === "active" && device.monitoring_enabled === "true")
+    .map((device) => ({
+      device_id: device.device_id,
+      device_type: device.device_type,
+      site: device.site,
+      interfaces: device.interfaces.split("|").filter(Boolean),
+    }));
+
+  if (devices.length === 0) {
+    throw new Error("Inventory has no active monitored devices.");
+  }
+
+  for (const device of devices) {
+    if (!device.device_id || !device.device_type || !device.site || device.interfaces.length === 0) {
+      throw new Error(`Inventory device is missing required generator fields: ${JSON.stringify(device)}`);
+    }
+  }
+
+  return devices;
+}
+
 function pick(random, values) {
   return values[Math.floor(random() * values.length)];
 }
@@ -109,6 +167,9 @@ function privateIp(random, site) {
     "geneva-branch": "10.40",
     "basel-branch": "10.30",
   };
+  if (!prefixes[site]) {
+    return `10.250.${intBetween(random, 1, 30)}.${intBetween(random, 2, 240)}`;
+  }
   return `${prefixes[site]}.${intBetween(random, 1, 30)}.${intBetween(random, 2, 240)}`;
 }
 
@@ -131,7 +192,7 @@ function eventLabel(dstPort, flowAction, latencyMs, deviceType) {
   return "normal";
 }
 
-function generateRow(random, index, timestamp, anomalyRate) {
+function generateRow(random, devices, index, timestamp, anomalyRate) {
   const device = pick(random, devices);
   const isAnomaly = random() < anomalyRate;
   const protocol = random() < 0.75 ? "TCP" : "UDP";
@@ -187,13 +248,13 @@ function generateRow(random, index, timestamp, anomalyRate) {
   };
 }
 
-function generateRows(args) {
+function generateRows(args, devices) {
   const random = args.seed === null || Number.isNaN(args.seed) ? Math.random : mulberry32(args.seed);
   const rows = [];
   let timestamp = new Date("2026-05-09T08:00:00Z");
 
   for (let index = 1; index <= args.count; index += 1) {
-    rows.push(generateRow(random, index, timestamp, args.anomalyRate));
+    rows.push(generateRow(random, devices, index, timestamp, args.anomalyRate));
     timestamp = new Date(timestamp.getTime() + pick(random, [5, 10, 15, 30]) * 1000);
   }
 
@@ -216,7 +277,8 @@ function writeCsv(rows, outputPath) {
 
 function main() {
   const args = parseArgs(process.argv);
-  const rows = generateRows(args);
+  const devices = loadInventory(args.inventory);
+  const rows = generateRows(args, devices);
   const outputPath = path.resolve(args.output || `generated_network_telemetry.${args.format}`);
 
   if (args.format === "json") {

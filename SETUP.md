@@ -36,6 +36,12 @@ If Node.js is installed, you can also use:
 node .\scripts\telemetry_agent.js --count 100 --anomaly-rate 0.15 --format csv --output .\data\generated_network_telemetry.csv
 ```
 
+The Node.js generator uses `data/network_infra_inventory.csv` as the device master by default. You can point it to another inventory file with:
+
+```powershell
+node .\scripts\telemetry_agent.js --inventory .\data\network_infra_inventory.csv --count 100 --format csv --output .\data\generated_network_telemetry.csv
+```
+
 Generate 100 JSON rows with PowerShell:
 
 ```powershell
@@ -47,6 +53,7 @@ Generate 100 JSON rows with PowerShell:
 - `--count` controls how many rows are generated.
 - `--anomaly-rate` controls the share of suspicious or abnormal events.
 - `--format` can be `csv` or `json`.
+- `--inventory` chooses the network infrastructure inventory file.
 - `--output` chooses the output file.
 - `--seed` makes output repeatable.
 
